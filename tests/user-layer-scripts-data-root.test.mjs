@@ -199,3 +199,23 @@ for (const mode of MODES) {
       `model-blacklist.json was not read from the data root:\n${result.output}`);
   });
 }
+
+// cmdEvaluate reserves its report number only AFTER a live OpenRouter call (the
+// API URL is hardcoded), so the child-process cases above cannot reach the
+// reserve/release call sites offline. Pin their arguments at the source level
+// instead: the allocator's own tests call it directly and would stay green if
+// either call site drifted back to the code root.
+test('openrouter-runner.mjs reserves and releases report numbers under DATA_ROOT', () => {
+  const src = readFileSync(join(ROOT, 'openrouter-runner.mjs'), 'utf-8');
+  const reserve = src.match(/reserveReportNumbers\(\s*1\s*,\s*\{([^}]*)\}/);
+  assert.ok(reserve, 'reserveReportNumbers(1, { ... }) call not found');
+  assert.match(reserve[1], /rootDir:\s*DATA_ROOT\b/, `reserve rootDir is not DATA_ROOT: ${reserve[1]}`);
+  assert.match(reserve[1], /reportsDir:\s*path\.join\(\s*DATA_ROOT\s*,\s*'reports'\s*\)/,
+    `reserve reportsDir is not under DATA_ROOT: ${reserve[1]}`);
+  const release = src.match(/releaseReportNumbers\([^,]+,\s*\{([^}]*)\}/);
+  assert.ok(release, 'releaseReportNumbers(..., { ... }) call not found');
+  assert.match(release[1], /reportsDir:\s*path\.join\(\s*DATA_ROOT\s*,\s*'reports'\s*\)/,
+    `release reportsDir is not under DATA_ROOT: ${release[1]}`);
+  assert.doesNotMatch(src, /path\.join\(\s*__dirname\s*,\s*'(?:reports|data)'/,
+    'openrouter-runner.mjs still joins a user-layer directory onto __dirname');
+});
