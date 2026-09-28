@@ -33,6 +33,7 @@ import { flagValue, hasFlag, validateFlags } from './lib/cli-flags.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
 import { parseTrackerRow, resolveColumns, isSeparatorRow, isHeaderRow } from './tracker-parse.mjs';
 import { resolveTrackerPath, resolveWorkspaceRoot } from './tracker-utils.mjs';
+import { getCareerOpsRoot } from './path-resolver.mjs';
 
 const REPO_URL = 'https://github.com/career-ops-hq/career-ops';
 const TEMPLATE = 'i-got-hired.yml';
@@ -138,7 +139,10 @@ async function main() {
   const bad = validateFlags(args, KNOWN_FLAGS, USAGE, { valueFlags: VALUE_FLAGS, requireOperand: true });
   if (bad) { process.exitCode = 1; return; }
 
-  const root = flagValue(args, '--root') || resolveWorkspaceRoot(resolveTrackerPath(process.cwd()));
+  // Default to the configured data root (CAREER_OPS_ROOT / CAREER_OPS_DATA_DIR /
+  // .career-ops-data marker), not process.cwd(): with the user layer outside the
+  // checkout, the cwd-derived root found no tracker and reported no hires.
+  const root = flagValue(args, '--root') || resolveWorkspaceRoot(resolveTrackerPath(getCareerOpsRoot()));
   const trackerPath = resolveTrackerPath(root);
   const tracker = existsSync(trackerPath) ? readFileSync(trackerPath, 'utf8') : '';
   const hires = hiredRows(tracker);
