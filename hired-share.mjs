@@ -26,8 +26,8 @@
  * permanent. A flywheel that nags stops being a celebration.
  */
 
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { dirname, join } from 'path';
 import { execFileSync } from 'child_process';
 import { flagValue, hasFlag, validateFlags } from './lib/cli-flags.mjs';
 import { isMainModule } from './lib/is-main-module.mjs';
@@ -61,7 +61,13 @@ function loadState(root) {
   if (!existsSync(p)) return { byReport: {} };
   try { return JSON.parse(readFileSync(p, 'utf8')); } catch { return { byReport: {} }; }
 }
-function saveState(root, s) { writeFileSync(statePath(root), JSON.stringify(s, null, 2) + '\n'); }
+function saveState(root, s) {
+  // A root on the legacy layout (applications.md at the top, no data/) still
+  // resolves its hires, so data/ may not exist yet when the answer is recorded.
+  const p = statePath(root);
+  mkdirSync(dirname(p), { recursive: true });
+  writeFileSync(p, JSON.stringify(s, null, 2) + '\n');
+}
 
 /** All tracker rows whose canonical state is Hired, as {report, role, company, location, date}. */
 export function hiredRows(trackerText) {
